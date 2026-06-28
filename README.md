@@ -85,6 +85,10 @@ python main.py
 Enter your search settings and click **Find hackathons**. The first run can take
 a little while because the browser sites are rendered one by one.
 
+Once results appear, use the **Sort by** menu above them to order the cards by
+date (soonest or latest first) or by prize money (highest or lowest first).
+Events without a cash prize are always listed last when sorting by prize.
+
 ## Project layout
 
 ```

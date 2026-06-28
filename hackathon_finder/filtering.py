@@ -30,6 +30,20 @@ def parse_date(value: str) -> date | None:
     return None
 
 
+def prize_value(prize_amount: str) -> float | None:
+    """Return the numeric value of a prize string, or None if there is none.
+
+    Examples: "€10,000" -> 10000.0, "$2,000,000" -> 2000000.0, "" -> None.
+    """
+    match = re.search(r"\d[\d,]*(?:\.\d+)?", prize_amount or "")
+    if not match:
+        return None
+    try:
+        return float(match.group().replace(",", ""))
+    except ValueError:
+        return None
+
+
 def has_cash_prize(prize_amount: str) -> bool:
     """True if there is a concrete cash prize.
 

@@ -11,10 +11,18 @@ from datetime import date, timedelta
 import customtkinter as ctk
 
 from . import config, pipeline
+from .filtering import parse_date, prize_value
 from .models import Criteria, Hackathon
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
+
+SORT_MODES = [
+    "Date: soonest first",
+    "Date: latest first",
+    "Prize: highest first",
+    "Prize: lowest first",
+]
 
 
 def _date_range_text(h: Hackathon) -> str:
@@ -38,9 +46,12 @@ class App(ctk.CTk):
         self.geometry("760x720")
         self.minsize(640, 560)
         self._running = False
+        self._results: list[Hackathon] = []
+        self._errors: list[tuple[str, str]] = []
 
         self._build_form()
         self._build_status()
+        self._build_sortbar()
         self._build_results()
 
     # ---- layout ---------------------------------------------------------
@@ -112,6 +123,29 @@ class App(ctk.CTk):
         self.status_label = ctk.CTkLabel(self, text="", anchor="w")
         self.status_label.pack(fill="x", padx=20, pady=(0, 4))
 
+    def _build_sortbar(self) -> None:
+        self.sort_bar = ctk.CTkFrame(self, fg_color="transparent")
+        ctk.CTkLabel(self.sort_bar, text="Sort by:").pack(side="left")
+        self.sort_var = tk.StringVar(value=SORT_MODES[0])
+        ctk.CTkOptionMenu(
+            self.sort_bar,
+            values=SORT_MODES,
+            variable=self.sort_var,
+            command=self._on_sort_change,
+            width=200,
+        ).pack(side="left", padx=8)
+        # Hidden until there are results to sort.
+
+    def _show_sortbar(self, visible: bool) -> None:
+        if visible and not self.sort_bar.winfo_ismapped():
+            self.sort_bar.pack(fill="x", padx=20, pady=(0, 2), before=self.results_frame)
+        elif not visible and self.sort_bar.winfo_ismapped():
+            self.sort_bar.pack_forget()
+
+    def _on_sort_change(self, _value: str) -> None:
+        if self._results and not self._running:
+            self._render()
+
     def _build_results(self) -> None:
         self.results_frame = ctk.CTkScrollableFrame(self, label_text="Results")
         self.results_frame.pack(fill="both", expand=True, padx=16, pady=(4, 16))
@@ -149,6 +183,7 @@ class App(ctk.CTk):
 
         self._running = True
         self.search_button.configure(state="disabled")
+        self._show_sortbar(False)
         self._clear_results()
         self._set_status("Starting…")
 
@@ -200,6 +235,8 @@ class App(ctk.CTk):
     ) -> None:
         self._running = False
         self.search_button.configure(state="normal")
+        self._results = results
+        self._errors = errors
 
         summary = f"Found {len(results)} hackathon(s)."
         if errors:
@@ -207,8 +244,34 @@ class App(ctk.CTk):
             summary += f"  Could not read: {failed}."
         self._set_status(summary, warn=bool(errors) and not results)
 
-        if errors:
-            self._render_errors(errors)
+        self._show_sortbar(bool(results))
+        self._render()
+
+    def _sorted_results(self) -> list[Hackathon]:
+        """Order the stored results by the selected sort mode."""
+        mode = self.sort_var.get()
+        items = list(self._results)
+        if mode.startswith("Date"):
+            reverse = "latest" in mode
+            items.sort(
+                key=lambda h: parse_date(h.start_date) or date.max, reverse=reverse
+            )
+        else:  # Prize: events without a prize always go last
+            reverse = "highest" in mode
+            with_prize = [h for h in items if prize_value(h.prize_amount) is not None]
+            without_prize = [h for h in items if prize_value(h.prize_amount) is None]
+            with_prize.sort(
+                key=lambda h: prize_value(h.prize_amount) or 0.0, reverse=reverse
+            )
+            items = with_prize + without_prize
+        return items
+
+    def _render(self) -> None:
+        """Redraw the error box and the (sorted) result cards."""
+        self._clear_results()
+        if self._errors:
+            self._render_errors(self._errors)
+        results = self._sorted_results()
         for h in results:
             self._render_card(h)
         if not results:
