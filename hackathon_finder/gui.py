@@ -10,7 +10,7 @@ from datetime import date, timedelta
 
 import customtkinter as ctk
 
-from . import pipeline
+from . import config, pipeline
 from .models import Criteria, Hackathon
 
 ctk.set_appearance_mode("System")
@@ -89,12 +89,19 @@ class App(ctk.CTk):
             form, width=360, show="•", placeholder_text="sk-ant-…"
         )
         self.api_entry.grid(
-            row=4, column=1, columnspan=2, sticky="w", padx=12, pady=(4, 12)
+            row=4, column=1, columnspan=2, sticky="w", padx=12, pady=(4, 2)
         )
-        # Pre-fill from the environment if a key is already set there.
-        env_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if env_key:
-            self.api_entry.insert(0, env_key)
+        # Pre-fill from the environment, otherwise from the saved config file.
+        saved_key = os.environ.get("ANTHROPIC_API_KEY", "") or config.load_api_key()
+        if saved_key:
+            self.api_entry.insert(0, saved_key)
+
+        ctk.CTkLabel(
+            form,
+            text="The key is saved on this computer so you only enter it once.",
+            font=ctk.CTkFont(size=11),
+            text_color="gray",
+        ).grid(row=5, column=1, columnspan=3, sticky="w", padx=12, pady=(0, 10))
 
         self.search_button = ctk.CTkButton(
             form, text="Find hackathons", command=self._on_search
@@ -133,6 +140,12 @@ class App(ctk.CTk):
         if not api_key:
             self._set_status("Enter your Anthropic API key first.", warn=True)
             return
+
+        # Remember the key for next time (best effort; never blocks the search).
+        try:
+            config.save_api_key(api_key)
+        except Exception:  # noqa: BLE001
+            pass
 
         self._running = True
         self.search_button.configure(state="disabled")

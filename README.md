@@ -55,8 +55,18 @@ playwright install chromium
 ### API key
 
 You can enter your Anthropic API key directly in the app (there is a field on
-the form). If you prefer, set it as an environment variable instead and the
-field will be pre-filled from it:
+the form). After you run a search, the key is saved on this computer so you do
+not have to type it again next time.
+
+It is stored in plain text in your user profile:
+
+- Windows: `%APPDATA%\HackathonFinder\config.json`
+- macOS / Linux: `~/.config/hackathon-finder/config.json`
+
+To remove the saved key, clear the field and run a search, or delete that file.
+
+If you prefer, you can set the key as an environment variable instead; the field
+is pre-filled from it when present:
 
 ```bash
 # Windows (PowerShell)
