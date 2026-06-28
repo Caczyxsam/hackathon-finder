@@ -49,7 +49,11 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-Set your API key:
+### API key
+
+You can enter your Anthropic API key directly in the app (there is a field on
+the form). If you prefer, set it as an environment variable instead and the
+field will be pre-filled from it:
 
 ```bash
 # Windows (PowerShell)

@@ -105,12 +105,16 @@ def _call(client: "anthropic.Anthropic", user: str):
         return client.messages.create(**base)
 
 
-def extract(source: str, content: str) -> list[Hackathon]:
-    """Extract hackathons from one source's page content."""
+def extract(source: str, content: str, api_key: str | None = None) -> list[Hackathon]:
+    """Extract hackathons from one source's page content.
+
+    If api_key is empty/None, the Anthropic client falls back to the
+    ANTHROPIC_API_KEY environment variable.
+    """
     if not content or not content.strip():
         return []
 
-    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+    client = anthropic.Anthropic(api_key=api_key or None)
     today = date.today().isoformat()
     user = (
         f"Today's date: {today}\n"

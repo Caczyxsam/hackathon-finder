@@ -23,8 +23,13 @@ def _short(error: Exception) -> str:
 def run(
     criteria: Criteria,
     progress: Callable[[str], None] = lambda _msg: None,
+    api_key: str | None = None,
 ) -> tuple[list[Hackathon], list[tuple[str, str]]]:
-    """Return (results, errors). errors is a list of (source_name, message)."""
+    """Return (results, errors). errors is a list of (source_name, message).
+
+    api_key is passed to the LLM extractor; if empty/None it falls back to
+    the ANTHROPIC_API_KEY environment variable.
+    """
     raw: list[Hackathon] = []
     errors: list[tuple[str, str]] = []
 
@@ -33,7 +38,7 @@ def run(
     try:
         content = fetchers.fetch_devpost()
         progress("Reading Devpost…")
-        raw += extract("Devpost", content)
+        raw += extract("Devpost", content, api_key)
     except Exception as error:  # noqa: BLE001 - report and keep going
         errors.append(("Devpost", _short(error)))
 
@@ -51,7 +56,7 @@ def run(
                     try:
                         text = fetchers.render_page(context, source["url"])
                         progress(f"Reading {name}…")
-                        raw += extract(name, text)
+                        raw += extract(name, text, api_key)
                     except Exception as error:  # noqa: BLE001
                         errors.append((name, _short(error)))
             finally:

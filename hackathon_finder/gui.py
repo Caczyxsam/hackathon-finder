@@ -43,12 +43,6 @@ class App(ctk.CTk):
         self._build_status()
         self._build_results()
 
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            self._set_status(
-                "Warning: ANTHROPIC_API_KEY is not set. Set it before searching.",
-                warn=True,
-            )
-
     # ---- layout ---------------------------------------------------------
     def _build_form(self) -> None:
         form = ctk.CTkFrame(self)
@@ -86,12 +80,26 @@ class App(ctk.CTk):
         self.cash_var = tk.BooleanVar(value=False)
         ctk.CTkCheckBox(
             form, text="Require a promised cash prize", variable=self.cash_var
-        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 12))
+        ).grid(row=3, column=0, columnspan=3, sticky="w", padx=12, pady=(8, 4))
+
+        ctk.CTkLabel(form, text="Anthropic API key").grid(
+            row=4, column=0, sticky="w", padx=12, pady=(4, 12)
+        )
+        self.api_entry = ctk.CTkEntry(
+            form, width=360, show="•", placeholder_text="sk-ant-…"
+        )
+        self.api_entry.grid(
+            row=4, column=1, columnspan=2, sticky="w", padx=12, pady=(4, 12)
+        )
+        # Pre-fill from the environment if a key is already set there.
+        env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if env_key:
+            self.api_entry.insert(0, env_key)
 
         self.search_button = ctk.CTkButton(
             form, text="Find hackathons", command=self._on_search
         )
-        self.search_button.grid(row=3, column=3, sticky="e", padx=12, pady=(8, 12))
+        self.search_button.grid(row=4, column=3, sticky="e", padx=12, pady=(4, 12))
 
     def _build_status(self) -> None:
         self.status_label = ctk.CTkLabel(self, text="", anchor="w")
@@ -121,13 +129,18 @@ class App(ctk.CTk):
             self._set_status(str(error), warn=True)
             return
 
+        api_key = self.api_entry.get().strip()
+        if not api_key:
+            self._set_status("Enter your Anthropic API key first.", warn=True)
+            return
+
         self._running = True
         self.search_button.configure(state="disabled")
         self._clear_results()
         self._set_status("Starting…")
 
         thread = threading.Thread(
-            target=self._worker, args=(criteria,), daemon=True
+            target=self._worker, args=(criteria, api_key), daemon=True
         )
         thread.start()
 
@@ -151,12 +164,12 @@ class App(ctk.CTk):
             require_cash_prize=self.cash_var.get(),
         )
 
-    def _worker(self, criteria: Criteria) -> None:
+    def _worker(self, criteria: Criteria, api_key: str) -> None:
         def progress(message: str) -> None:
             self.after(0, lambda: self._set_status(message))
 
         try:
-            results, errors = pipeline.run(criteria, progress)
+            results, errors = pipeline.run(criteria, progress, api_key)
         except Exception as error:  # noqa: BLE001
             self.after(0, lambda: self._finish_error(str(error)))
             return
