@@ -23,22 +23,24 @@ directly instead.)
 
 ## How it works
 
-1. You enter a date range, a list of allowed countries, and whether a cash
-   prize is required.
-2. Each site's page content is fetched (the JavaScript sites are rendered in a
-   headless browser first).
-3. Claude reads each page and extracts structured data: name, organizer, dates,
+1. You click **Load hackathons**. Every site's content is fetched (the
+   JavaScript sites are rendered in a headless browser first).
+2. Claude reads each page and extracts structured data: name, organizer, dates,
    country, city, venue, prize, and link. If a field is missing or unclear it is
    left blank — the model does not guess.
-4. The results are filtered **in code**, not by the prompt:
-   - only upcoming events whose start date is inside your range,
-   - only your allowed countries (online events are always included),
-   - if you require a cash prize, only events with a real cash amount.
-5. Duplicates that appear on more than one site are removed.
-6. The matches are shown as cards.
+3. Duplicates that appear on more than one site are removed.
+4. **All** hackathons are shown as cards.
+5. You then narrow them down with live filters (no re-loading needed):
+   - **Cash prize**: any / yes / no,
+   - **Online**: any / yes / no,
+   - **Countries**: a list of accepted countries (online events always pass),
+   - **Date**: a from/to range.
+6. You can sort the cards by date (soonest or latest) or prize money (highest or
+   lowest).
 
-If a site fails to respond or cannot be parsed, the others continue and the app
-tells you which site failed.
+Filtering and sorting happen **in code**, not in the prompt. If a site fails to
+respond or cannot be parsed, the others continue and the app tells you which
+site failed.
 
 ## Requirements
 
@@ -55,15 +57,15 @@ playwright install chromium
 ### API key
 
 You can enter your Anthropic API key directly in the app (there is a field on
-the form). After you run a search, the key is saved on this computer so you do
-not have to type it again next time.
+the form). After you load hackathons, the key is saved on this computer so you
+do not have to type it again next time.
 
 It is stored in plain text in your user profile:
 
 - Windows: `%APPDATA%\HackathonFinder\config.json`
 - macOS / Linux: `~/.config/hackathon-finder/config.json`
 
-To remove the saved key, clear the field and run a search, or delete that file.
+To remove the saved key, clear the field and load again, or delete that file.
 
 If you prefer, you can set the key as an environment variable instead; the field
 is pre-filled from it when present:
@@ -82,34 +84,36 @@ export ANTHROPIC_API_KEY="your-key-here"
 python main.py
 ```
 
-Enter your search settings and click **Find hackathons**. The first run can take
-a little while because the browser sites are rendered one by one.
-
-Once results appear, use the **Sort by** menu above them to order the cards by
-date (soonest or latest first) or by prize money (highest or lowest first).
-Events without a cash prize are always listed last when sorting by prize.
+Click **Load hackathons**. The first load can take a little while because the
+browser sites are rendered one by one. After they appear, use the filter and
+**Sort by** controls at the top to narrow and order the cards — this is instant
+and never re-loads. Click **Reload hackathons** to fetch fresh data.
 
 ## Project layout
 
 ```
 main.py                     Launches the app
 hackathon_finder/
-  models.py                 Data types (Hackathon, Criteria)
-  fetchers.py               Get page content (Devpost API + Playwright)
+  models.py                 Data types (Hackathon, Filters)
+  config.py                 Saves the API key between runs
+  fetchers.py               Get content (Devpost + Hackathon Hub APIs, Playwright)
   extractor.py              Claude extracts structured data
-  filtering.py              Deterministic filtering
+  filtering.py              Live, in-code filtering and prize parsing
   dedup.py                  Remove duplicates across sites
-  pipeline.py               Runs the whole flow
+  pipeline.py               Loads all hackathons (fetch + extract + dedup)
   gui.py                    The CustomTkinter card view
 ```
 
 ## Notes
 
 - The model used is `claude-opus-4-8`.
-- Filtering is strict: events with no usable date, or (for non-online events) no
-  matching country, are left out rather than guessed at.
-- "Cash prize required" keeps only events whose prize is a clear money amount
-  (for example `€10,000`). Swag, credits, or unspecified prizes do not count.
+- Hackathons whose start date is already in the past are never shown, even with
+  no date filter set. Events with no readable start date are still shown.
+- Filters are strict when active: when you set a date range, events with no
+  usable date are hidden; when you set countries, in-person events with no
+  matching country are hidden (online events always pass the country filter).
+- The cash-prize filter uses the extracted prize amount: swag, credits, or
+  unspecified prizes count as "no cash prize".
 
 ## License
 

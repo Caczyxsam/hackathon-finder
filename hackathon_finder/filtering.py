@@ -1,11 +1,15 @@
-"""Deterministic, in-code filtering. The LLM never decides what to keep."""
+"""Deterministic, in-code filtering applied to the loaded hackathons.
+
+Filters are optional: with the default Filters() everything passes, so all
+hackathons appear until the user narrows them down.
+"""
 
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, datetime
 
-from .models import Criteria, Hackathon
+from .models import Filters, Hackathon
 
 
 def parse_date(value: str) -> date | None:
@@ -15,8 +19,6 @@ def parse_date(value: str) -> date | None:
         return None
     for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
         try:
-            from datetime import datetime
-
             return datetime.strptime(value, fmt).date()
         except ValueError:
             continue
@@ -53,48 +55,45 @@ def has_cash_prize(prize_amount: str) -> bool:
     return bool(re.search(r"\d", prize_amount or ""))
 
 
-def _norm(text: str) -> str:
-    return (text or "").strip().lower()
-
-
-def in_window(h: Hackathon, criteria: Criteria, today: date) -> bool:
-    """True if the event is upcoming and starts within the search window."""
-    start = parse_date(h.start_date)
-    if start is None:
-        return False  # no usable date -> cannot confirm it is upcoming
-    end = parse_date(h.end_date) or start
-    if end < today:
-        return False  # already finished
-    lower = max(today, criteria.start)
-    return lower <= start <= criteria.end
-
-
-def country_ok(h: Hackathon, criteria: Criteria) -> bool:
-    """Online events always pass. Otherwise the country must be allowed."""
+def _country_matches(h: Hackathon, countries: list[str]) -> bool:
+    """Online events always pass. Otherwise the country must be in the list."""
     if h.is_online:
         return True
-    if not criteria.countries:
-        return True  # user set no country restriction
-    if not h.country:
-        return False  # strict: unknown country is excluded
-    hc = _norm(h.country)
-    return any(c == hc or c in hc or hc in c for c in criteria.countries)
+    hc = (h.country or "").strip().lower()
+    if not hc:
+        return False  # unknown country cannot match a specific list
+    return any(c == hc or c in hc or hc in c for c in countries)
 
 
-def cash_ok(h: Hackathon, criteria: Criteria) -> bool:
-    if not criteria.require_cash_prize:
-        return True
-    return has_cash_prize(h.prize_amount)
+def apply_filters(items: list[Hackathon], f: Filters) -> list[Hackathon]:
+    """Return only the hackathons that pass every active filter.
 
-
-def filter_all(items: list[Hackathon], criteria: Criteria) -> list[Hackathon]:
-    """Apply all filters. Returns only events that pass every check."""
+    Past events are always hidden: a hackathon whose start date is before today
+    never appears, regardless of the other filters. Events with no usable start
+    date are kept (we cannot tell that they are in the past).
+    """
     today = date.today()
-    return [
-        h
-        for h in items
-        if h.name
-        and in_window(h, criteria, today)
-        and country_ok(h, criteria)
-        and cash_ok(h, criteria)
-    ]
+    results: list[Hackathon] = []
+    for h in items:
+        start = parse_date(h.start_date)
+        if start is not None and start < today:
+            continue  # already started / in the past
+        if f.cash == "yes" and not has_cash_prize(h.prize_amount):
+            continue
+        if f.cash == "no" and has_cash_prize(h.prize_amount):
+            continue
+        if f.online == "yes" and not h.is_online:
+            continue
+        if f.online == "no" and h.is_online:
+            continue
+        if f.countries and not _country_matches(h, f.countries):
+            continue
+        if f.start or f.end:
+            if start is None:
+                continue  # no usable date cannot be confirmed in range
+            if f.start and start < f.start:
+                continue
+            if f.end and start > f.end:
+                continue
+        results.append(h)
+    return results

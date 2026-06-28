@@ -25,10 +25,11 @@ class Hackathon:
 
 
 @dataclass
-class Criteria:
-    """The search settings entered by the user."""
+class Filters:
+    """Live filters applied to the loaded hackathons. Defaults keep everything."""
 
-    start: date
-    end: date
-    countries: list[str] = field(default_factory=list)  # normalized, lower case
-    require_cash_prize: bool = False
+    countries: list[str] = field(default_factory=list)  # normalized lower; empty = all
+    cash: str = "any"      # "any" | "yes" | "no"
+    online: str = "any"    # "any" | "yes" | "no"
+    start: date | None = None  # None = no lower date bound
+    end: date | None = None    # None = no upper date bound

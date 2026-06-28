@@ -1,7 +1,8 @@
-"""Run the whole flow: fetch -> extract -> filter -> dedup.
+"""Load all hackathons: fetch -> extract -> dedup (no filtering).
 
-Each source is isolated: if one site fails to respond or cannot be parsed,
-the others continue and the failure is reported back to the caller.
+Filtering now happens live in the GUI, so the pipeline returns every
+hackathon it can read. Each source is isolated: if one site fails to respond
+or cannot be parsed, the others continue and the failure is reported back.
 """
 
 from __future__ import annotations
@@ -11,8 +12,7 @@ from typing import Callable
 from . import fetchers
 from .dedup import dedup
 from .extractor import extract_items, extract_text
-from .filtering import filter_all
-from .models import Criteria, Hackathon
+from .models import Hackathon
 
 
 def _short(error: Exception) -> str:
@@ -21,15 +21,10 @@ def _short(error: Exception) -> str:
 
 
 def run(
-    criteria: Criteria,
     progress: Callable[[str], None] = lambda _msg: None,
     api_key: str | None = None,
 ) -> tuple[list[Hackathon], list[tuple[str, str]]]:
-    """Return (results, errors). errors is a list of (source_name, message).
-
-    api_key is passed to the LLM extractor; if empty/None it falls back to
-    the ANTHROPIC_API_KEY environment variable.
-    """
+    """Return (all_hackathons, errors). errors is a list of (source, message)."""
     raw: list[Hackathon] = []
     errors: list[tuple[str, str]] = []
 
@@ -72,7 +67,6 @@ def run(
         for source in fetchers.BROWSER_SOURCES:
             errors.append((source["name"], message))
 
-    # 3) Deterministic filtering, then remove cross-site duplicates.
-    progress("Filtering…")
-    results = dedup(filter_all(raw, criteria))
-    return results, errors
+    # 3) Remove cross-site duplicates. No criteria filtering here.
+    progress("Removing duplicates…")
+    return dedup(raw), errors
