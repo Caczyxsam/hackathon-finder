@@ -27,13 +27,19 @@ invent a value.
 - If a field is missing or unclear, return an empty string "".
 - Dates must be ISO format YYYY-MM-DD. If only a partial date is given and you \
 cannot determine the full date from the content, leave it blank.
-- prize_amount: fill this ONLY with a concrete cash prize amount including its \
-currency, for example "€10,000" or "$5,000". If the prize is non-cash (swag, \
+- prize_amount: fill this ONLY with a concrete cash prize amount, for example \
+"€10,000" or "$5,000". If a numeric prize value is given without a currency (for \
+example a prize_money field of 50000), still put that number in prize_amount and \
+add the currency only if you can tell what it is. If the prize is non-cash (swag, \
 credits, hardware) or not stated, leave prize_amount blank and put any prize \
 description in prize_text.
 - is_online: true only if the event is fully online / virtual / remote with no \
 physical location.
-- country, city, venue: the physical location, if stated.
+- country, city, venue: the physical location, if stated. If the country is \
+given as a 2-letter ISO code (for example DE, FI, NL), convert it to the full \
+English country name (Germany, Finland, Netherlands).
+- If the content has a location_type field, treat "online" as is_online true and \
+"onsite"/"hybrid" as a physical event (is_online false).
 - link: the registration page or event page URL.
 - Ignore navigation, ads, and anything that is not an event.
 
@@ -75,23 +81,54 @@ SCHEMA = {
 }
 
 
+def _salvage(text: str) -> dict:
+    """Recover as many complete {...} records as possible from broken JSON.
+
+    Used when the model output is cut off (truncated array), so a single
+    truncation does not lose every record from a source.
+    """
+    objects: list[dict] = []
+    start = text.find("[")
+    if start == -1:
+        return {"hackathons": []}
+    depth = 0
+    obj_start: int | None = None
+    for i in range(start, len(text)):
+        char = text[i]
+        if char == "{":
+            if depth == 0:
+                obj_start = i
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0 and obj_start is not None:
+                try:
+                    objects.append(json.loads(text[obj_start : i + 1]))
+                except json.JSONDecodeError:
+                    pass
+                obj_start = None
+    return {"hackathons": objects}
+
+
 def _parse_json(text: str) -> dict:
-    """Parse JSON, tolerating code fences or stray text around the object."""
+    """Parse JSON, tolerating code fences, stray text, or a truncated array."""
     text = text.strip()
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```$", "", text)
     start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end != -1:
-        text = text[start : end + 1]
-    return json.loads(text)
+    inner = text[start : end + 1] if start != -1 and end != -1 else text
+    try:
+        return json.loads(inner)
+    except json.JSONDecodeError:
+        return _salvage(text)
 
 
 def _call(client: "anthropic.Anthropic", user: str):
     """Call the model, preferring schema-validated output, with a plain fallback."""
     base = dict(
         model=MODEL,
-        max_tokens=8000,
+        max_tokens=16000,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user}],
     )
@@ -105,29 +142,32 @@ def _call(client: "anthropic.Anthropic", user: str):
         return client.messages.create(**base)
 
 
-def extract(source: str, content: str, api_key: str | None = None) -> list[Hackathon]:
-    """Extract hackathons from one source's page content.
+# How many API records to send to the model per call. Keeping this small means
+# the JSON the model writes back stays well under max_tokens and is never cut off.
+_BATCH_SIZE = 30
 
-    If api_key is empty/None, the Anthropic client falls back to the
-    ANTHROPIC_API_KEY environment variable.
-    """
-    if not content or not content.strip():
-        return []
 
-    client = anthropic.Anthropic(api_key=api_key or None)
+def _client(api_key: str | None) -> "anthropic.Anthropic":
+    # api_key=None makes the client fall back to ANTHROPIC_API_KEY.
+    return anthropic.Anthropic(api_key=api_key or None)
+
+
+def _extract_content(client: "anthropic.Anthropic", source: str, content: str) -> list[Hackathon]:
+    """Run one extraction call over a single block of content."""
     today = date.today().isoformat()
     user = (
         f"Today's date: {today}\n"
         f"Source website: {source}\n\n"
         f"Page content:\n{content}"
     )
-
     response = _call(client, user)
     text = next((b.text for b in response.content if b.type == "text"), "")
     data = _parse_json(text)
 
     results: list[Hackathon] = []
     for item in data.get("hackathons", []):
+        if not isinstance(item, dict):
+            continue
         results.append(
             Hackathon(
                 name=str(item.get("name", "")).strip(),
@@ -144,4 +184,29 @@ def extract(source: str, content: str, api_key: str | None = None) -> list[Hacka
                 source=source,
             )
         )
+    return results
+
+
+def extract_text(source: str, content: str, api_key: str | None = None) -> list[Hackathon]:
+    """Extract hackathons from rendered page text (one call)."""
+    if not content or not content.strip():
+        return []
+    return _extract_content(_client(api_key), source, content)
+
+
+def extract_items(
+    source: str, items: list[dict], api_key: str | None = None
+) -> list[Hackathon]:
+    """Extract hackathons from a list of API records, in small batches.
+
+    Batching keeps each model response short enough that it is never truncated.
+    """
+    if not items:
+        return []
+    client = _client(api_key)
+    results: list[Hackathon] = []
+    for start in range(0, len(items), _BATCH_SIZE):
+        batch = items[start : start + _BATCH_SIZE]
+        content = json.dumps(batch, ensure_ascii=False)
+        results += _extract_content(client, source, content)
     return results

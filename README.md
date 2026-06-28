@@ -9,14 +9,17 @@ reads each page and extracts the data; all filtering is done in plain Python.
 | Site | How the data is read |
 | --- | --- |
 | https://devpost.com/hackathons | Public JSON API (no browser needed) |
+| https://hackathonhub.eu/events | Public Supabase JSON API (no browser needed) |
 | https://taikai.network/hackathons | Headless browser (JavaScript page) |
 | https://www.hackjunction.com/events | Headless browser (JavaScript page) |
 | https://ultrahack.org/hackathons | Headless browser (JavaScript page) |
-| https://hackathonhub.eu/events | Headless browser (JavaScript page) |
 
-Four of the five sites are JavaScript single-page apps: their content does not
-exist in the raw HTML, so a headless browser (Playwright) renders the page
-before the content can be read.
+Two sites expose a clean JSON API, which is read directly. The other three are
+JavaScript single-page apps whose content does not exist in the raw HTML, so a
+headless browser (Playwright) renders the page before the content can be read.
+(Hackathon Hub looks like a JavaScript page, but its events never appear in the
+rendered HTML — they load from a public Supabase API, which the app reads
+directly instead.)
 
 ## How it works
 

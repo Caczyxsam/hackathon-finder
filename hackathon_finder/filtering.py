@@ -7,9 +7,6 @@ from datetime import date
 
 from .models import Criteria, Hackathon
 
-# Currency symbols and common codes used to detect a real cash prize.
-_CURRENCY = r"(?:[$€£₹¥]|\b(?:usd|eur|gbp|inr|jpy|cad|aud|chf|sek|nok|dkk|pln)\b)"
-
 
 def parse_date(value: str) -> date | None:
     """Parse an ISO-like date string. Return None if it cannot be parsed."""
@@ -34,11 +31,12 @@ def parse_date(value: str) -> date | None:
 
 
 def has_cash_prize(prize_amount: str) -> bool:
-    """True if the prize field clearly contains a cash amount."""
-    s = (prize_amount or "").strip()
-    if not s or not re.search(r"\d", s):
-        return False
-    return re.search(_CURRENCY, s, re.IGNORECASE) is not None
+    """True if there is a concrete cash prize.
+
+    The extractor only fills prize_amount with a real money amount (non-cash
+    prizes go in prize_text), so any numeric value here means a cash prize.
+    """
+    return bool(re.search(r"\d", prize_amount or ""))
 
 
 def _norm(text: str) -> str:

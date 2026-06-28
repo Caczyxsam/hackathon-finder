@@ -10,7 +10,7 @@ from typing import Callable
 
 from . import fetchers
 from .dedup import dedup
-from .extractor import extract
+from .extractor import extract_items, extract_text
 from .filtering import filter_all
 from .models import Criteria, Hackathon
 
@@ -33,22 +33,27 @@ def run(
     raw: list[Hackathon] = []
     errors: list[tuple[str, str]] = []
 
-    # 1) Devpost via its JSON API (no browser needed).
-    progress("Fetching Devpost…")
-    try:
-        content = fetchers.fetch_devpost()
-        progress("Reading Devpost…")
-        raw += extract("Devpost", content, api_key)
-    except Exception as error:  # noqa: BLE001 - report and keep going
-        errors.append(("Devpost", _short(error)))
+    # 1) Sources with a clean data API (no browser needed).
+    for source in fetchers.API_SOURCES:
+        name = source["name"]
+        progress(f"Fetching {name}…")
+        try:
+            items = source["fetch"]()
+            progress(f"Reading {name}…")
+            raw += extract_items(name, items, api_key)
+        except Exception as error:  # noqa: BLE001 - report and keep going
+            errors.append((name, _short(error)))
 
-    # 2) The four JavaScript sites via a single headless browser.
+    # 2) The JavaScript sites via a single headless browser.
     try:
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
-            context = browser.new_context(user_agent=fetchers.USER_AGENT)
+            context = browser.new_context(
+                user_agent=fetchers.USER_AGENT,
+                viewport={"width": 1280, "height": 1600},
+            )
             try:
                 for source in fetchers.BROWSER_SOURCES:
                     name = source["name"]
@@ -56,7 +61,7 @@ def run(
                     try:
                         text = fetchers.render_page(context, source["url"])
                         progress(f"Reading {name}…")
-                        raw += extract(name, text, api_key)
+                        raw += extract_text(name, text, api_key)
                     except Exception as error:  # noqa: BLE001
                         errors.append((name, _short(error)))
             finally:
