@@ -95,7 +95,7 @@ and never re-loads. Click **Reload hackathons** to fetch fresh data.
 main.py                     Launches the app
 hackathon_finder/
   models.py                 Data types (Hackathon, Filters)
-  config.py                 Saves the API key between runs
+  config.py                 Saves the API key and the loaded hackathons
   fetchers.py               Get content (Devpost + Hackathon Hub APIs, Playwright)
   extractor.py              Claude extracts structured data
   filtering.py              Live, in-code filtering and prize parsing
@@ -107,6 +107,10 @@ hackathon_finder/
 ## Notes
 
 - The model used is `claude-opus-4-8`.
+- Loaded hackathons are saved on this computer, so when you reopen the program
+  you see the results of your last load without paying to research again. A new
+  load replaces the saved list (unless it returns nothing, to avoid wiping your
+  data on a failed run). The file sits next to the config: `hackathons.json`.
 - Hackathons whose start date is already in the past are never shown, even with
   no date filter set. Events with no readable start date are still shown.
 - Filters are strict when active: when you set a date range, events with no

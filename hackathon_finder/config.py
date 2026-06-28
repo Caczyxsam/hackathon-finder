@@ -12,7 +12,11 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict, fields
+from datetime import datetime
 from pathlib import Path
+
+from .models import Hackathon
 
 
 def _config_dir() -> Path:
@@ -25,6 +29,10 @@ def _config_dir() -> Path:
 
 def _config_file() -> Path:
     return _config_dir() / "config.json"
+
+
+def _cache_file() -> Path:
+    return _config_dir() / "hackathons.json"
 
 
 def load_config() -> dict:
@@ -57,3 +65,31 @@ def save_api_key(key: str) -> None:
     else:
         data.pop("api_key", None)
     save_config(data)
+
+
+def save_hackathons(items: list[Hackathon]) -> None:
+    """Save the loaded hackathons so they show again next time."""
+    directory = _config_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    data = {
+        "saved_at": datetime.now().isoformat(timespec="minutes"),
+        "hackathons": [asdict(h) for h in items],
+    }
+    _cache_file().write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def load_hackathons() -> tuple[list[Hackathon], str]:
+    """Load previously saved hackathons. Returns (items, saved_at_text)."""
+    try:
+        data = json.loads(_cache_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return [], ""
+    valid = {f.name for f in fields(Hackathon)}
+    items = [
+        Hackathon(**{k: v for k, v in record.items() if k in valid})
+        for record in data.get("hackathons", [])
+        if isinstance(record, dict)
+    ]
+    return items, str(data.get("saved_at", ""))

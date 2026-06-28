@@ -72,11 +72,13 @@ class App(ctk.CTk):
         self._loading = False
         self._all: list[Hackathon] = []      # every hackathon loaded
         self._errors: list[tuple[str, str]] = []
+        self._origin = ""                    # note about where the data came from
 
         self._build_header()
         self._build_filters()
         self._build_status()
         self._build_results()
+        self._load_cached()
 
     # ---- layout ---------------------------------------------------------
     def _build_header(self) -> None:
@@ -246,6 +248,21 @@ class App(ctk.CTk):
             return
         self.after(0, lambda: self._loaded(results, errors))
 
+    def _load_cached(self) -> None:
+        """On startup, show the most recently saved hackathons, if any."""
+        try:
+            items, saved_at = config.load_hackathons()
+        except Exception:  # noqa: BLE001
+            items, saved_at = [], ""
+        if items:
+            self._all = items
+            self._errors = []
+            self._origin = (
+                f"saved {saved_at.replace('T', ' ')}" if saved_at else "saved data"
+            )
+            self.load_button.configure(text="Reload hackathons")
+            self._apply()
+
     def _load_failed(self, message: str) -> None:
         self._loading = False
         self.load_button.configure(state="normal", text="Load hackathons")
@@ -256,6 +273,14 @@ class App(ctk.CTk):
         self.load_button.configure(state="normal", text="Reload hackathons")
         self._all = results
         self._errors = errors
+        self._origin = ""
+        if results:
+            # Update the saved list only when the research returned something,
+            # so a fully-failed load does not wipe the previous results.
+            try:
+                config.save_hackathons(results)
+            except Exception:  # noqa: BLE001
+                pass
         self._apply()  # show everything (filters default to "all")
 
     # ---- filtering / rendering -----------------------------------------
@@ -313,6 +338,8 @@ class App(ctk.CTk):
             summary = "No hackathons loaded yet. Enter your key and click Load."
         else:
             summary = f"Showing {len(shown)} of {total} hackathons."
+            if self._origin:
+                summary += f"  ({self._origin})"
         if self._errors:
             failed = ", ".join(name for name, _ in self._errors)
             summary += f"  Could not read: {failed}."
