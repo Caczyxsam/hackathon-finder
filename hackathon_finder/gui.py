@@ -42,6 +42,8 @@ SORT_MODES = [
     "Date: latest first",
     "Prize: highest first",
     "Prize: lowest first",
+    "Source: A-Z",
+    "Source: Z-A",
 ]
 
 
@@ -351,6 +353,11 @@ class App(ctk.CTk):
         if mode.startswith("Date"):
             reverse = "latest" in mode
             items.sort(key=lambda h: parse_date(h.start_date) or date.max, reverse=reverse)
+        elif mode.startswith("Source"):
+            reverse = "Z-A" in mode
+            # Secondary order: soonest first within each source.
+            items.sort(key=lambda h: parse_date(h.start_date) or date.max)
+            items.sort(key=lambda h: (h.source or "").lower(), reverse=reverse)
         else:  # events without a prize always go last
             reverse = "highest" in mode
             with_prize = [h for h in items if prize_value(h.prize_amount) is not None]
