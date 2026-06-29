@@ -56,12 +56,12 @@ def has_cash_prize(prize_amount: str) -> bool:
 
 
 def _country_matches(h: Hackathon, countries: list[str]) -> bool:
-    """Online events always pass. Otherwise the country must be in the list."""
-    if h.is_online:
-        return True
+    """The country must be in the list. This applies to online events too, so an
+    online hackathon with no matching country is filtered out when countries are
+    set."""
     hc = (h.country or "").strip().lower()
     if not hc:
-        return False  # unknown country cannot match a specific list
+        return False  # unknown / no country cannot match a specific list
     return any(c == hc or c in hc or hc in c for c in countries)
 
 

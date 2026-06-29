@@ -33,7 +33,8 @@ directly instead.)
 5. You then narrow them down with live filters (no re-loading needed):
    - **Cash prize**: any / yes / no,
    - **Online**: any / yes / no,
-   - **Countries**: a list of accepted countries (online events always pass),
+   - **Countries**: a list of accepted countries (also applies to online events,
+     so an online hackathon with no matching country is hidden),
    - **Sources**: a checkbox per site (untick the ones you do not want),
    - **Date**: a from/to range.
 6. You can sort the cards by date (soonest or latest) or prize money (highest or
@@ -115,8 +116,8 @@ hackathon_finder/
 - Hackathons whose start date is already in the past are never shown, even with
   no date filter set. Events with no readable start date are still shown.
 - Filters are strict when active: when you set a date range, events with no
-  usable date are hidden; when you set countries, in-person events with no
-  matching country are hidden (online events always pass the country filter).
+  usable date are hidden; when you set countries, any event whose country is not
+  in your list is hidden — including online events with no matching country.
 - The cash-prize filter uses the extracted prize amount: swag, credits, or
   unspecified prizes count as "no cash prize".
 

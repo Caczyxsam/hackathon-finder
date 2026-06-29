@@ -132,14 +132,16 @@ class App(ctk.CTk):
             text_color=SUBTLE,
         ).grid(row=0, column=0, columnspan=4, sticky="w", padx=14, pady=(12, 6))
 
-        # Cash prize and Online: three-way segmented buttons.
-        ctk.CTkLabel(box, text="Cash prize").grid(row=1, column=0, sticky="w", padx=14, pady=4)
+        # Cash prize and Online: three-way segmented buttons, kept close to
+        # their labels in a single tightly-packed row.
+        toggles = ctk.CTkFrame(box, fg_color="transparent")
+        toggles.grid(row=1, column=0, columnspan=4, sticky="w", padx=14, pady=4)
+        ctk.CTkLabel(toggles, text="Cash prize").pack(side="left", padx=(0, 8))
         self.cash_var = tk.StringVar(value="Any")
-        self._segmented(box, self.cash_var).grid(row=1, column=1, sticky="w", padx=8, pady=4)
-
-        ctk.CTkLabel(box, text="Online").grid(row=1, column=2, sticky="w", padx=14, pady=4)
+        self._segmented(toggles, self.cash_var).pack(side="left", padx=(0, 28))
+        ctk.CTkLabel(toggles, text="Online").pack(side="left", padx=(0, 8))
         self.online_var = tk.StringVar(value="Any")
-        self._segmented(box, self.online_var).grid(row=1, column=3, sticky="w", padx=8, pady=4)
+        self._segmented(toggles, self.online_var).pack(side="left")
 
         # Countries.
         ctk.CTkLabel(box, text="Countries").grid(row=2, column=0, sticky="w", padx=14, pady=4)
