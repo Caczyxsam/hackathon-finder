@@ -41,7 +41,10 @@ English country name (Germany, Finland, Netherlands).
 - If the content has a location_type field, treat "online" as is_online true and \
 "onsite"/"hybrid" as a physical event (is_online false).
 - link: the registration page or event page URL.
-- Ignore navigation, ads, and anything that is not an event.
+- Ignore navigation, ads, and anything that is not a real event. In particular,
+  skip template, demo, or placeholder previews — for example placeholder names
+  or URLs like "your-event", example emails, or sample join codes. If a page
+  says no event is currently scheduled, do not invent one.
 
 Return ONLY a JSON object of the form {"hackathons": [ ... ]} and nothing else."""
 

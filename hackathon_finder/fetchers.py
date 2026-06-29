@@ -115,6 +115,7 @@ BROWSER_SOURCES = [
     {"name": "Taikai", "url": "https://taikai.network/hackathons"},
     {"name": "Hackjunction", "url": "https://www.hackjunction.com/events"},
     {"name": "Ultrahack", "url": "https://ultrahack.org/hackathons"},
+    {"name": "PromptHack", "url": "https://prompthack.aaltoes.com/"},
 ]
 
 
