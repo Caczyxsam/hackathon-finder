@@ -14,7 +14,7 @@ from datetime import date
 
 import customtkinter as ctk
 
-from . import config, pipeline
+from . import config, fetchers, pipeline
 from .filtering import apply_filters, parse_date, prize_value
 from .models import Filters, Hackathon
 
@@ -149,37 +149,51 @@ class App(ctk.CTk):
         self.countries_entry.grid(row=2, column=1, columnspan=3, sticky="w", padx=8, pady=4)
         self.countries_entry.bind("<Return>", lambda _e: self._apply())
 
+        # Sources: one checkbox per site (all on = every source).
+        ctk.CTkLabel(box, text="Sources").grid(row=3, column=0, sticky="w", padx=14, pady=4)
+        sources_row = ctk.CTkFrame(box, fg_color="transparent")
+        sources_row.grid(row=3, column=1, columnspan=3, sticky="w", padx=8, pady=4)
+        self.source_vars: dict[str, tk.BooleanVar] = {}
+        for name in fetchers.source_names():
+            var = tk.BooleanVar(value=True)
+            self.source_vars[name] = var
+            ctk.CTkCheckBox(
+                sources_row, text=name, variable=var, command=self._apply,
+                checkbox_width=18, checkbox_height=18,
+                fg_color=ACCENT, hover_color=ACCENT_HOVER, font=ctk.CTkFont(size=12),
+            ).pack(side="left", padx=(0, 12))
+
         # Date range.
-        ctk.CTkLabel(box, text="Date from").grid(row=3, column=0, sticky="w", padx=14, pady=4)
+        ctk.CTkLabel(box, text="Date from").grid(row=4, column=0, sticky="w", padx=14, pady=4)
         self.from_entry = ctk.CTkEntry(box, width=140, placeholder_text="YYYY-MM-DD")
-        self.from_entry.grid(row=3, column=1, sticky="w", padx=8, pady=4)
+        self.from_entry.grid(row=4, column=1, sticky="w", padx=8, pady=4)
         self.from_entry.insert(0, date.today().isoformat())  # default: today
-        ctk.CTkLabel(box, text="to").grid(row=3, column=2, sticky="w", padx=14, pady=4)
+        ctk.CTkLabel(box, text="to").grid(row=4, column=2, sticky="w", padx=14, pady=4)
         self.to_entry = ctk.CTkEntry(box, width=140, placeholder_text="YYYY-MM-DD")
-        self.to_entry.grid(row=3, column=3, sticky="w", padx=8, pady=4)
+        self.to_entry.grid(row=4, column=3, sticky="w", padx=8, pady=4)
         self.to_entry.insert(0, _six_months_ahead())  # default: 6 months ahead
         self.from_entry.bind("<Return>", lambda _e: self._apply())
         self.to_entry.bind("<Return>", lambda _e: self._apply())
 
         # Sort + buttons.
-        ctk.CTkLabel(box, text="Sort by").grid(row=4, column=0, sticky="w", padx=14, pady=(4, 12))
+        ctk.CTkLabel(box, text="Sort by").grid(row=5, column=0, sticky="w", padx=14, pady=(4, 12))
         self.sort_var = tk.StringVar(value=SORT_MODES[0])
         ctk.CTkOptionMenu(
             box, values=SORT_MODES, variable=self.sort_var,
             command=lambda _v: self._apply(), width=200,
             fg_color=CHIP_BG, button_color=SOURCE_BG, button_hover_color=ACCENT_HOVER,
             corner_radius=8,
-        ).grid(row=4, column=1, sticky="w", padx=8, pady=(4, 12))
+        ).grid(row=5, column=1, sticky="w", padx=8, pady=(4, 12))
 
         ctk.CTkButton(
             box, text="Apply filters", command=self._apply, width=120,
             corner_radius=10, fg_color=ACCENT, hover_color=ACCENT_HOVER,
             text_color=ACCENT_TEXT, font=ctk.CTkFont(weight="bold"),
-        ).grid(row=4, column=2, sticky="w", padx=8, pady=(4, 12))
+        ).grid(row=5, column=2, sticky="w", padx=8, pady=(4, 12))
         ctk.CTkButton(
             box, text="Reset", command=self._reset_filters, width=80,
             corner_radius=10, fg_color=CHIP_BG, hover_color=SOURCE_BG,
-        ).grid(row=4, column=3, sticky="w", padx=8, pady=(4, 12))
+        ).grid(row=5, column=3, sticky="w", padx=8, pady=(4, 12))
 
     def _segmented(self, parent, variable) -> ctk.CTkSegmentedButton:
         return ctk.CTkSegmentedButton(
@@ -294,12 +308,14 @@ class App(ctk.CTk):
         ]
         start = self._read_date(self.from_entry)
         end = self._read_date(self.to_entry)
+        sources = [name for name, var in self.source_vars.items() if var.get()]
         return Filters(
             countries=countries,
             cash=self.cash_var.get().lower(),
             online=self.online_var.get().lower(),
             start=start,
             end=end,
+            sources=sources,
         )
 
     @staticmethod
@@ -315,6 +331,8 @@ class App(ctk.CTk):
     def _reset_filters(self) -> None:
         self.cash_var.set("Any")
         self.online_var.set("Any")
+        for var in self.source_vars.values():
+            var.set(True)
         self.countries_entry.delete(0, "end")
         self.from_entry.delete(0, "end")
         self.from_entry.insert(0, date.today().isoformat())  # default: today

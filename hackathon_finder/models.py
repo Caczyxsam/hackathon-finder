@@ -33,3 +33,4 @@ class Filters:
     online: str = "any"    # "any" | "yes" | "no"
     start: date | None = None  # None = no lower date bound
     end: date | None = None    # None = no upper date bound
+    sources: list[str] | None = None  # allowed source names; None = all

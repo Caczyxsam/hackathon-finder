@@ -73,11 +73,14 @@ def apply_filters(items: list[Hackathon], f: Filters) -> list[Hackathon]:
     date are kept (we cannot tell that they are in the past).
     """
     today = date.today()
+    allowed_sources = None if f.sources is None else {s.lower() for s in f.sources}
     results: list[Hackathon] = []
     for h in items:
         start = parse_date(h.start_date)
         if start is not None and start < today:
             continue  # already started / in the past
+        if allowed_sources is not None and (h.source or "").lower() not in allowed_sources:
+            continue
         if f.cash == "yes" and not has_cash_prize(h.prize_amount):
             continue
         if f.cash == "no" and has_cash_prize(h.prize_amount):

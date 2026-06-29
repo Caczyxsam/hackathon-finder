@@ -117,6 +117,11 @@ BROWSER_SOURCES = [
     {"name": "Ultrahack", "url": "https://ultrahack.org/hackathons"},
 ]
 
+
+def source_names() -> list[str]:
+    """All source names in display order."""
+    return [s["name"] for s in API_SOURCES] + [s["name"] for s in BROWSER_SOURCES]
+
 # Best-effort labels for cookie / consent buttons that can hide content.
 _CONSENT_LABELS = [
     "Accept all", "Accept All", "Accept", "I agree", "Agree",

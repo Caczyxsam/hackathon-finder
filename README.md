@@ -34,6 +34,7 @@ directly instead.)
    - **Cash prize**: any / yes / no,
    - **Online**: any / yes / no,
    - **Countries**: a list of accepted countries (online events always pass),
+   - **Sources**: a checkbox per site (untick the ones you do not want),
    - **Date**: a from/to range.
 6. You can sort the cards by date (soonest or latest) or prize money (highest or
    lowest).
