@@ -1,0 +1,48 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]      # deploy on every push to main
+  workflow_dispatch:       # also allow manual runs
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Don't run two deploys at once
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ▼▼▼ THE ONLY PART THAT CHANGES PER PROJECT ▼▼▼
+      - name: Build the site
+        run: mkdocs build          # outputs to ./site
+      # ▲▲▲ swap this for your tool (see below) ▲▲▲
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site                # the folder your build produced
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
