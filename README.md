@@ -4,6 +4,8 @@ Collect upcoming hackathons from five websites, filter them by your criteria,
 and show them as cards in a simple desktop app. An LLM (the Anthropic API)
 reads each page and extracts the data; all filtering is done in plain Python.
 
+TRY IT OUT (own Anthropic API key required): https://hackathon-finder-demo.streamlit.app/ 
+
 ## Sources
 
 | Site | How the data is read |
