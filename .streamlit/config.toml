@@ -1,0 +1,10 @@
+# Theme matched to the desktop GUI's dark palette.
+[theme]
+base = "dark"
+primaryColor = "#38BDF8"
+backgroundColor = "#161A20"
+secondaryBackgroundColor = "#222831"
+textColor = "#F1F5F9"
+
+[server]
+headless = true
